@@ -1,39 +1,21 @@
 package com.korovasoft.garth;
 
-import java.util.HashMap;
-import java.util.concurrent.ArrayBlockingQueue;
-
 import com.korovasoft.ga.distributed.KSOrganism;
 
 public class StatsWorker extends AbstractQueueWorker {
 
-	private ArrayBlockingQueue<KSOrganism> evaluatedQ;
-	private ArrayBlockingQueue<KSOrganism> statsQ;
-	private double threshhold;
-	private double lowestFitness;
-	private double highestFitness;
-	private long numOrgsSeen;
-	private long numOrgsSinceImprovement;
-	private long numOrgsSinceLastReport;
-	private boolean newLowestFitness;
-	
-	public StatsWorker(Thread bossThread, HashMap<String,ArrayBlockingQueue<KSOrganism>> qHash, double threshhold) {
-		super(bossThread);
-		evaluatedQ = qHash.get("evaluated");
-		statsQ = qHash.get("statistics");
-		this.threshhold = threshhold;
-		lowestFitness = Double.POSITIVE_INFINITY;
-		highestFitness = Double.NEGATIVE_INFINITY;
-		numOrgsSeen = 0;
-		numOrgsSinceLastReport = 0;
-		newLowestFitness = false;
-	}
+	private double lowestFitness = Double.POSITIVE_INFINITY;
+	private double highestFitness = Double.NEGATIVE_INFINITY;
+	private long numOrgsSeen = 0;
+	private long numOrgsSinceImprovement = 0;
+	private long numOrgsSinceLastReport = 0;
+	private boolean newLowestFitness = false;
 	
 	@Override
-	protected void doSomeWork() throws InterruptedException {
-		KSOrganism o = statsQ.take();
-		evaluatedQ.put(o); // That way everyone else can get on with their lives as soon as possible.
-		if (o.fitnessScore <= threshhold) {
+	protected void doOneIterationOfWork() throws InterruptedException {
+		KSOrganism o = qdb.take(GarthMain.STATISTICS_Q);
+		qdb.put(GarthMain.EVALUATED_Q,o); // That way everyone else can get on with their lives as soon as possible.
+		if (o.fitnessScore <= GarthConfig.threshhold) {
 			interruptBoss();
 		}
 		if (o.fitnessScore < lowestFitness) {
@@ -45,12 +27,12 @@ public class StatsWorker extends AbstractQueueWorker {
 			highestFitness = o.fitnessScore;
 			KSOrganism.setFitnessNormalizer(highestFitness);
 		}
-		if (newLowestFitness || numOrgsSinceLastReport > 100000) {
+		if (newLowestFitness || numOrgsSinceLastReport > GarthConfig.reportInterval) {
 			System.out.println("Score: " + lowestFitness + "\tOrgs: " + numOrgsSeen);
 			numOrgsSinceLastReport = 0;
 			newLowestFitness = false;
 		}
-		if (numOrgsSinceImprovement > 10 * 1000 * 1000) {
+		if (numOrgsSinceImprovement > GarthConfig.stagnationInterval) {
 			interruptBoss();
 		}
 		numOrgsSeen++;

@@ -14,4 +14,6 @@ public class KSAdditiveFitnessFunction extends KSFitnessFunction {
 		}
 		return fitness;
 	}
+	
+	
 }

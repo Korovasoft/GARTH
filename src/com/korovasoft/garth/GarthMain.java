@@ -1,47 +1,52 @@
 package com.korovasoft.garth;
 
-import java.util.HashMap;
-import java.util.concurrent.ArrayBlockingQueue;
-
-import com.korovasoft.ga.distributed.KSAdditiveFitnessFunction;
 import com.korovasoft.ga.distributed.KSOrganism;
 
 public class GarthMain {
+
+	public static final String EVALUATED_Q = "evaluated";
+	public static final String UNEVALUATED_Q = "unevaluated";
+	public static final String STATISTICS_Q = "statistics";
 
 	/**
 	 * @param args
 	 */
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
-		int populationSize = 500;
-		int threshhold = 0;
-		int genomeLength = 10;
-		HashMap<String,ArrayBlockingQueue<KSOrganism>> qHash = new HashMap<String,ArrayBlockingQueue<KSOrganism>>();
+		long startTime = System.currentTimeMillis();
 		
 		Thread t = Thread.currentThread();
-		qHash.put("unevaluated", new ArrayBlockingQueue<KSOrganism>(populationSize, false));
-		qHash.put("evaluated",  new ArrayBlockingQueue<KSOrganism>(populationSize, false));
-		qHash.put("statistics",  new ArrayBlockingQueue<KSOrganism>(populationSize, false));
+		QueueDatabase qdb = new QueueDatabase();
 		
-		for (int i = 0; i < populationSize; i++) {
-			qHash.get("unevaluated").add(new KSOrganism(genomeLength, true));
+		qdb.createQueue(EVALUATED_Q, GarthConfig.populationSize);
+		qdb.createQueue(UNEVALUATED_Q, GarthConfig.populationSize);
+		qdb.createQueue(STATISTICS_Q, GarthConfig.populationSize);
+		
+		
+		for (int i = 0; i < GarthConfig.populationSize; i++) {
+			qdb.offer(UNEVALUATED_Q, new KSOrganism(GarthConfig.genomeLength, true));
 		}
 		
-		QueueWorkerCollection workers = new QueueWorkerCollection();
+		QueueWorkerCollection workers = new QueueWorkerCollection(t,qdb);
 		
-		workers.add(new FitnessWorker(t, qHash, new KSAdditiveFitnessFunction()));
-		workers.add(new StatsWorker(t, qHash, threshhold));
-		workers.add(new MatingWorker(t, qHash));
+		workers.add(new FitnessWorker(new MinimalSineDistanceFF()));
+		workers.add(new FitnessWorker(new MinimalSineDistanceFF()));
+		workers.add(new StatsWorker());
+		workers.add(new MatingWorker());
 		
 		workers.deploy();
 		try {
 			while(true) {
-				Thread.sleep(60 * 1000);
+				Thread.sleep(GarthConfig.masterThreadSleepInterval);
 			}
 		} catch (InterruptedException e) {
 			
 		}
 		workers.withdraw();
+		long finishTime = System.currentTimeMillis();
+		long totalTime = finishTime - startTime;
+		long numSeconds = totalTime / 1000;
+		System.out.println("Experiment completed in " + numSeconds + " seconds.");
 	}
 
 }
