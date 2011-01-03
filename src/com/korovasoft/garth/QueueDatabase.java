@@ -5,6 +5,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.korovasoft.ga.distributed.KSOrganism;
 
+/**
+ * Keeps a collection of related queues that can be shared amongst
+ * a QueueWorkerCollection
+ * @author robertdfrench
+ *
+ */
 public class QueueDatabase {
 	
 	/**
@@ -12,6 +18,9 @@ public class QueueDatabase {
 	 */
 	private ConcurrentHashMap<String, ArrayBlockingQueue<KSOrganism>> qHash;
 	
+	/**
+	 * Plain old parameter-free constructor
+	 */
 	public QueueDatabase() {
 		qHash = new ConcurrentHashMap<String, ArrayBlockingQueue<KSOrganism>>();
 	}
